@@ -1,0 +1,19 @@
+on:
+  release:
+    types: [created]
+
+env:
+  CGO_ENABLED: 0
+
+jobs:
+  release-linux-arm:
+    name: release linux/arm
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: wangyoucao577/go-release-action@v1.24
+      with:
+        goos: linux
+        goarch: arm
+        ldflags: -s -w
+        github_token: ${{ secrets.GITHUB_TOKEN }}
