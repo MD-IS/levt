@@ -4,6 +4,7 @@ import (
   tea "github.com/charmbracelet/bubbletea"
   "path/filepath"
   "encoding/json"
+  "strings"
   "fmt"
   "os"
 )
@@ -27,6 +28,7 @@ type Config struct {
   prompt      bool
   exiting     bool
   index       int
+  width       int
 }
 
 func (this Config) Init() tea.Cmd {
@@ -37,6 +39,9 @@ func (this Config) Update(
   message tea.Msg,
 ) (tea.Model, tea.Cmd) {
   switch m := message.(type) {
+    case tea.WindowSizeMsg: {
+      this.width = m.Width
+    }
     case tea.KeyMsg: {
       i := &this.index
       switch m.String() {
@@ -53,11 +58,11 @@ func (this Config) Update(
         case "enter": {
           if this.promptText != "" {
             if this.prompt {
-              if *i != 0 {
-                c := &this.Bookmarks
-                *c = append((*c)[:*i-1], (*c)[*i:]...)
+              c := &this.Bookmarks
+              if *i < len(*c) {
+                *c = append((*c)[:*i], (*c)[*i+1:]...)
                 this.Save()
-                *i--
+                *i++
               }
             }
             this.promptText = ""
@@ -91,8 +96,9 @@ func (this Config) Update(
           }
         }
         case "d": {
-          if this.index == 0 {return this, nil}
-          this.promptText = "Delete ? "
+          if this.index < len(this.Bookmarks) {
+            this.promptText = "Delete ? "
+          }
         }
       }
     }
@@ -102,19 +108,29 @@ func (this Config) Update(
 
 func (this Config) View() string {
   if this.exiting {return ""}
-  str := "\x1b[1mLast Read:\x1b[m\n"
-  lrs := this.LastRead.String()
-  if this.index == 0 {
-    str += "> \x1b[33m" + lrs + "\x1b[m\n"
-  } else {
-    str += "  " + lrs + "\n"
-  }
-  str += "\x1b[1mBookmarks:\x1b[m\n"
-  for i, v := range this.Bookmarks {
-    if this.index == (i + 1) {
-      str += "> \x1b[33m" + v.String() + "\x1b[m\n"
+  str := "\x1b[1mBookmarks:\x1b[m\n"
+  scs := append(this.Bookmarks, this.LastRead)
+  for i, v := range scs {
+    t := v.String()
+    if len(t) + 2 > this.width {
+      split := strings.Split(t, "]")
+      last := len(split) - 1
+      suffix := split[last]
+      margin := 4 + len(suffix)
+      if this.width > margin {
+        rst := strings.Join(split[:last], "]")
+        shrt := rst[:this.width - margin]
+        t = shrt + "…]" + suffix
+      }
+    }
+
+    if i == len(scs) -1 {
+      str += "\x1b[1mLast Read:\x1b[m\n"
+    }
+    if this.index == i {
+      str += "> \x1b[33m" + t + "\x1b[m\n"
     } else {
-      str += "  " + v.String() + "\n"
+      str += "  " + t + "\n"
     }
   }
   if this.promptText != "" {

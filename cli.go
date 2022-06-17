@@ -92,11 +92,10 @@ func main() {
       if i < 0 {return}
       var sc StartConf
 
-      if i == 0 {
+      if i >= len(c) {
         sc = config.LastRead
       } else {
-        if i > len(c) {os.Exit(99)}
-        sc = c[i - 1]
+        sc = c[i]
       }
 
       cursor = sc.Cursor
